@@ -1,0 +1,4 @@
+src/*.o
+src/.*
+src/kiq
+bin/*
