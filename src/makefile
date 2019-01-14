@@ -11,7 +11,7 @@ LDLIBS_SRA=-L$(NCBI_DIR)/lib64 \
 					 -lpthread -lz -ldl \
 					 -Wl,-rpath,$(NCBI_DIR)/lib64
 
-all: makefile kiq
+all: makefile kiq testread testwrite
 	mkdir -p ../bin && cp kiq ../bin/
 
 sra: CXXFLAGS:=$(CXXFLAGS) -D KIQ_SRA
@@ -21,6 +21,11 @@ sra: makefile main.o kdump.o kindex.o kquery.o kdb.o util.o ReadItem.o CountThre
 
 kiq: makefile main.o kdump.o kindex.o kquery.o kdb.o util.o ReadItem.o CountThread.o
 	$(CXX) $(LDFLAGS) -o kiq kdump.o main.o kindex.o kdb.o kquery.o util.o ReadItem.o CountThread.o $(LDLIBS)
+
+testread: util.o testread.o
+	$(CXX) $(LDFLAGS) -o testread util.o testread.o $(LDLIBS)
+testwrite: util.o testwrite.o
+	$(CXX) $(LDFLAGS) -o testwrite util.o testwrite.o $(LDLIBS)
 
 ksra.o: ksra.cpp version.hpp
 	$(CXX) $(CXXFLAGS) $(INCLUDES) $(INCLUDES_SRA) -c -o ksra.o ksra.cpp

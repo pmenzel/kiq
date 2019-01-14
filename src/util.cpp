@@ -19,6 +19,78 @@ void strip(std::string & s) {
 		}
 }
 
+void read_database(const std::string & filename,
+										std::vector<Kmer> & initial_kmers,
+										pCountMap * kmer2countmap,
+										boophf_t * bphf,
+										bool append,
+										ExpId2Name & exp_id2name,
+										ExpName2Id & exp_name2id,
+										ExpId2ReadCount & exp_id2readcount) {
+
+	std::cerr << getCurrentTime() << " Reading database file " << filename << "\n";
+	std::ifstream ifs(filename, std::ios::in | std::ios::binary);
+	if(!ifs) {  error("Could not open file " + filename); exit(EXIT_FAILURE); }
+
+	//read header
+	struct HeaderDbFile h;
+	ifs.read(reinterpret_cast<char*>(&h.kiq), sizeof(h.kiq));
+	if(!ifs.good()) {  error("Error reading from file " + filename); exit(EXIT_FAILURE); }
+	if(h.kiq[0] != 'K' || h.kiq[1] != 'I' || h.kiq[2] != 'Q') { error("Wrong file type detected in file " + filename); exit(EXIT_FAILURE); }
+	ifs.read(reinterpret_cast<char*>(&h.dbVer), sizeof(h.dbVer));
+	if(!ifs.good()) {  error("Error reading from file " + filename); exit(EXIT_FAILURE); }
+	std::cerr << h.kiq[0] << h.kiq[1] << h.kiq[2] << " ver=" << (int)h.dbVer << "\n";
+
+	//if(h.numKmer != bphf->nbKeys()) { error("Error: Mismatching number of k-mers in hash index and k-mer database " + filename); exit(EXIT_FAILURE); }
+
+	// read k-mer section
+	struct HeaderDbKmers k;
+	ifs.read(reinterpret_cast<char*>(&k.numKmer), sizeof(k.numKmer));
+	if(!ifs.good()) {  error("Error reading from file " + filename); exit(EXIT_FAILURE); }
+	std::cerr << "numKmer=" << k.numKmer << "\n";
+
+	for(uint64_t n = 1; n <= k.numKmer; n++) {
+		Kmer kmer;
+		ifs.read(reinterpret_cast<char*>(&kmer), sizeof(Kmer));
+		if(!ifs.good()) {  error("Error reading from file " + filename); exit(EXIT_FAILURE); }
+		KmerIndex index = bphf->lookup(kmer);
+		std::cerr << "Read k-mer " << kmer << "="<< int_to_str(kmer)  <<" with index " << index << "\n";
+		assert(index < bphf->nbKeys());
+		initial_kmers.emplace_back(kmer);
+		ExperimentCount num_exp = 0;
+		ifs.read(reinterpret_cast<char*>(&num_exp), sizeof(ExperimentCount));
+		if(!ifs.good()) {  error("Error reading from file " + filename); exit(EXIT_FAILURE); }
+		std::cerr << "num exp=" << num_exp <<"\n";
+		if(num_exp>0) {
+			if(append) kmer2countmap[index] = new CountMap();
+			for(int i=0; i < static_cast<int>(num_exp); i++) {
+				ExperimentId exp_id = 0;
+				ifs.read(reinterpret_cast<char*>(&exp_id), sizeof(ExperimentId));
+				if(!ifs.good()) {  error("Error reading from file " + filename); exit(EXIT_FAILURE); }
+				KmerCount count = 0;
+				ifs.read(reinterpret_cast<char*>(&count), sizeof(KmerCount));
+				if(!ifs.good()) {  error("Error reading from file " + filename); exit(EXIT_FAILURE); }
+				std::cerr << " expid=" << exp_id << " count=" << count << "\n";
+				if(append) kmer2countmap[index]->emplace(exp_id,count);
+			}
+		}
+	}
+
+	// read metadata section
+	struct HeaderDbMetadata m;
+
+	ifs.read(reinterpret_cast<char*>(&m.label), sizeof(m.label));
+	if(!ifs.good()) {  error("Error reading from file " + filename); exit(EXIT_FAILURE); }
+	if(m.label[0] != 'M' || m.label[1] != 'E' || m.label[7] != 'A') { error("Error reading from file " + filename); exit(EXIT_FAILURE); }
+
+	ifs.read(reinterpret_cast<char*>(&m.numExp), sizeof(m.numExp));
+	if(!ifs.good()) {  error("Error reading from file " + filename); exit(EXIT_FAILURE); }
+	std::cerr << "numMetaExp=" << m.numExp << "\n";
+
+	// continue reading metadata, add field for sample description 
+
+}
+
 void print_usage_header() {
 	fprintf(stderr, "KIQ %s\n",KIQ_VERSION_STRING);
 	fprintf(stderr, "Copyright 2018,2019 Peter Menzel\n");

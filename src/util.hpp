@@ -29,6 +29,22 @@ using ExpId2ReadCount = std::map<ExperimentId, ReadCount>;
 
 enum DNA_MAP {C, A, T, G};  // A=1, C=0, T=2, G=3
 
+struct HeaderDbFile {
+    char kiq[3] = {'K','I','Q'};
+    uint64_t dbVer = 0;
+};
+
+struct HeaderDbKmers {
+    uint64_t numKmer = 0;
+};
+
+struct HeaderDbMetadata {
+    char label[8] = {'M','E','T','A','D','A','T','A'};
+    uint64_t numExp = 0;
+};
+
+
+
 #define KMER_K 32
 
 void error(const std::string e);
@@ -54,3 +70,11 @@ void read_experiment_database(const std::string & filename, ExpId2Name & exp_id2
 void read_experiment_database(const std::string & filename, ExpId2Name & exp_id2name, ExpName2Id & exp_name2id, ExpId2ReadCount & exp_id2readcount);
 void write_experiment_database(const std::string & filename, ExpId2Name & exp_id2name, ExpId2ReadCount & exp_id2readcount);
 
+void read_database(const std::string & filename,
+										std::vector<Kmer> & initial_kmers,
+										pCountMap * kmer2countmap,
+										boophf_t * bphf,
+										bool append,
+										ExpId2Name & exp_id2name,
+										ExpName2Id & exp_name2id,
+										ExpId2ReadCount & exp_id2readcount);
