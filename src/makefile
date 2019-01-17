@@ -11,7 +11,7 @@ LDLIBS_SRA=-L$(NCBI_DIR)/lib64 \
 					 -lpthread -lz -ldl \
 					 -Wl,-rpath,$(NCBI_DIR)/lib64
 
-all: makefile kiq testread testwrite
+all: makefile kiq testread testwrite convert1to2
 	mkdir -p ../bin && cp kiq ../bin/
 
 sra: CXXFLAGS:=$(CXXFLAGS) -D KIQ_SRA
@@ -26,6 +26,8 @@ testread: util.o testread.o
 	$(CXX) $(LDFLAGS) -o testread util.o testread.o $(LDLIBS)
 testwrite: util.o testwrite.o
 	$(CXX) $(LDFLAGS) -o testwrite util.o testwrite.o $(LDLIBS)
+convert1to2: util.o convert1to2.o
+	$(CXX) $(LDFLAGS) -o convert1to2 util.o convert1to2.o $(LDLIBS)
 
 ksra.o: ksra.cpp version.hpp
 	$(CXX) $(CXXFLAGS) $(INCLUDES) $(INCLUDES_SRA) -c -o ksra.o ksra.cpp

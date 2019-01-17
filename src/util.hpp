@@ -24,14 +24,15 @@ using ReadCount = uint64_t;
 using CountMap = std::map<ExperimentId, KmerCount>;
 using pCountMap = CountMap*;
 using ExpId2Name = std::map<ExperimentId, std::string>;
+using ExpId2Desc = std::map<ExperimentId, std::string>;
 using ExpName2Id = std::map<std::string, ExperimentId>;
 using ExpId2ReadCount = std::map<ExperimentId, ReadCount>;
 
 enum DNA_MAP {C, A, T, G};  // A=1, C=0, T=2, G=3
 
 struct HeaderDbFile {
-    char kiq[3] = {'K','I','Q'};
-    uint64_t dbVer = 0;
+    uint8_t magic[4] = {'K','I','Q',0x0A}; // == KIQ\n
+    uint32_t dbVer = 2;
 };
 
 struct HeaderDbKmers {
@@ -39,7 +40,7 @@ struct HeaderDbKmers {
 };
 
 struct HeaderDbMetadata {
-    char label[8] = {'M','E','T','A','D','A','T','A'};
+    uint8_t label[8] = {'M','E','T','A','D','A','T','A'};
     uint64_t numExp = 0;
 };
 
@@ -76,5 +77,14 @@ void read_database(const std::string & filename,
 										boophf_t * bphf,
 										bool append,
 										ExpId2Name & exp_id2name,
+										ExpId2Desc & exp_id2desc,
 										ExpName2Id & exp_name2id,
 										ExpId2ReadCount & exp_id2readcount);
+
+void write_database(const std::string & filename,
+										const std::vector<Kmer> & initial_kmers,
+										pCountMap * kmer2countmap,
+										boophf_t * bphf,
+										const ExpId2Name & exp_id2name,
+										const ExpId2Desc & exp_id2desc,
+										const ExpId2ReadCount & exp_id2readcount);

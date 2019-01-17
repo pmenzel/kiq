@@ -45,11 +45,19 @@ int main(int argc, char** argv) {
 	pCountMap * kmer2count = new pCountMap[n_elem](); // init new array of size n_elem
 
 	ExpId2Name exp_id2name;
+	ExpId2Desc exp_id2desc;
 	ExpName2Id exp_name2id;
 	ExpId2ReadCount exp_id2readcount;
 
-	read_database("testdb.bin", initial_kmers, kmer2count, bphf, true, exp_id2name, exp_name2id, exp_id2readcount);
+	try {
+		read_database("testdb.bin", initial_kmers, kmer2count, bphf, true, exp_id2name, exp_id2desc, exp_name2id, exp_id2readcount);
+	}
+	catch(std::runtime_error e) {
+		std::cerr << "Error while reading database (" << e.what() << ")." << std::endl;
+		exit(EXIT_FAILURE);
+	}
 
+	write_database("testdbout.bin", initial_kmers, kmer2count, bphf, exp_id2name, exp_id2desc, exp_id2readcount);
 	
 
 }

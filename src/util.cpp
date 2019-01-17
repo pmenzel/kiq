@@ -19,12 +19,73 @@ void strip(std::string & s) {
 		}
 }
 
+void write_database(const std::string & filename, const std::vector<Kmer> & initial_kmers, pCountMap * kmer2countmap, boophf_t * bphf, const ExpId2Name & exp_id2name, const ExpId2Desc & exp_id2desc, const ExpId2ReadCount & exp_id2readcount) {
+
+	std::cerr << getCurrentTime() << " Writing k-mer database to file " << filename << "\n";
+	std::ofstream os(filename, std::ios::out | std::ios::binary);
+	if(!os.is_open()) {  error("Could not open file " + filename); exit(EXIT_FAILURE); }
+
+	// write header
+	struct HeaderDbFile hdr;
+	os.write(reinterpret_cast<const char *>(&hdr.magic),sizeof(hdr.magic));
+	os.write(reinterpret_cast<const char *>(&hdr.dbVer),sizeof(hdr.dbVer));
+
+	struct HeaderDbKmers hdr_k;
+	hdr_k.numKmer = initial_kmers.size();
+	os.write(reinterpret_cast<const char *>(&hdr_k.numKmer),sizeof(hdr_k.numKmer));
+
+	for(Kmer it : initial_kmers) {
+		KmerIndex index = bphf->lookup(it);
+		assert(index < bphf->nbKeys());
+		Kmer kmer = it;
+		// write k-mer
+		os.write(reinterpret_cast<const char *>(&kmer),sizeof(kmer));
+		// write number of experiments having this k-mer
+		ExperimentCount num_exp = kmer2countmap[index]==nullptr ? 0 : static_cast<ExperimentCount>(kmer2countmap[index]->size());
+		os.write(reinterpret_cast<const char *>(&num_exp),sizeof(num_exp));
+		if(num_exp > 0) {
+			for(auto const & it_exp : *kmer2countmap[index]) {
+				ExperimentId exp_id = it_exp.first;
+				KmerCount count = kmer2countmap[index]->at(it_exp.first);
+				os.write(reinterpret_cast<const char *>(&exp_id),sizeof(exp_id));
+				os.write(reinterpret_cast<const char *>(&count),sizeof(count));
+			}
+		}
+	}
+
+	struct HeaderDbMetadata hdr_m;
+	hdr_m.numExp = exp_id2name.size();
+	os.write(reinterpret_cast<const char *>(&hdr_m.label),sizeof(hdr_m.label));
+	os.write(reinterpret_cast<const char *>(&hdr_m.numExp),sizeof(hdr_m.numExp));
+
+	for(auto const & it : exp_id2name) {
+		ExperimentId exp_id = it.first;
+		std::string exp_name = it.second;
+		assert(exp_id2desc.count(exp_id) > 0);
+		std::string exp_desc = exp_id2desc.at(exp_id);
+		assert(exp_id2readcount.count(exp_id) > 0);
+		ReadCount readcount = exp_id2readcount.at(exp_id);
+
+		os.write(reinterpret_cast<const char *>(&exp_id),sizeof(ExperimentId));
+		os.write(reinterpret_cast<const char *>(&readcount),sizeof(ReadCount));
+		os.write(exp_name.c_str(),exp_name.length() + 1);
+		os.write(exp_desc.c_str(),exp_desc.length() + 1);
+	}
+
+	os.close();
+	if(!os) { // writing failed at some point
+		error("Writing to file " + filename + "failed."); exit(EXIT_FAILURE); 
+	}
+
+}
+
 void read_database(const std::string & filename,
 										std::vector<Kmer> & initial_kmers,
 										pCountMap * kmer2countmap,
 										boophf_t * bphf,
 										bool append,
 										ExpId2Name & exp_id2name,
+										ExpId2Desc & exp_id2desc,
 										ExpName2Id & exp_name2id,
 										ExpId2ReadCount & exp_id2readcount) {
 
@@ -33,43 +94,47 @@ void read_database(const std::string & filename,
 	if(!ifs) {  error("Could not open file " + filename); exit(EXIT_FAILURE); }
 
 	//read header
-	struct HeaderDbFile h;
-	ifs.read(reinterpret_cast<char*>(&h.kiq), sizeof(h.kiq));
-	if(!ifs.good()) {  error("Error reading from file " + filename); exit(EXIT_FAILURE); }
-	if(h.kiq[0] != 'K' || h.kiq[1] != 'I' || h.kiq[2] != 'Q') { error("Wrong file type detected in file " + filename); exit(EXIT_FAILURE); }
-	ifs.read(reinterpret_cast<char*>(&h.dbVer), sizeof(h.dbVer));
-	if(!ifs.good()) {  error("Error reading from file " + filename); exit(EXIT_FAILURE); }
-	std::cerr << h.kiq[0] << h.kiq[1] << h.kiq[2] << " ver=" << (int)h.dbVer << "\n";
+	struct HeaderDbFile h_in;
+	struct HeaderDbFile h_ref;
+	ifs.read(reinterpret_cast<char*>(&h_in.magic), sizeof(h_in.magic));
+	if(!ifs.good()) throw std::runtime_error("could not read magic bytes, file truncated");
+	std::cerr << ">>"<<h_in.magic << "<<memcmp=" << memcmp(&(h_in.magic),&(h_ref.magic),3) << "\n";
+	if(memcmp(h_in.magic,h_ref.magic,3)!=0) throw std::runtime_error("wrong file type detected");
+	if(h_in.magic[3] != h_ref.magic[3]) throw std::runtime_error("file corruption detected");
 
-	//if(h.numKmer != bphf->nbKeys()) { error("Error: Mismatching number of k-mers in hash index and k-mer database " + filename); exit(EXIT_FAILURE); }
+	ifs.read(reinterpret_cast<char*>(&h_in.dbVer), sizeof(h_in.dbVer));
+	if(!ifs.good())  throw std::runtime_error("could not read version, file truncated");
+	std::cerr << "ver=" << h_in.dbVer << "\n";
+
 
 	// read k-mer section
 	struct HeaderDbKmers k;
 	ifs.read(reinterpret_cast<char*>(&k.numKmer), sizeof(k.numKmer));
-	if(!ifs.good()) {  error("Error reading from file " + filename); exit(EXIT_FAILURE); }
+	if(!ifs.good()) throw std::runtime_error("could not read number of kmers, file truncated");
 	std::cerr << "numKmer=" << k.numKmer << "\n";
+	//if(k.numKmer != bphf->nbKeys()) { error("Error: Mismatching number of k-mers in hash index and k-mer database " + filename); exit(EXIT_FAILURE); }
 
 	for(uint64_t n = 1; n <= k.numKmer; n++) {
 		Kmer kmer;
 		ifs.read(reinterpret_cast<char*>(&kmer), sizeof(Kmer));
-		if(!ifs.good()) {  error("Error reading from file " + filename); exit(EXIT_FAILURE); }
+		if(!ifs.good()) throw std::runtime_error("could not read k-mer #"+std::to_string(n)+", file truncated");
 		KmerIndex index = bphf->lookup(kmer);
-		std::cerr << "Read k-mer " << kmer << "="<< int_to_str(kmer)  <<" with index " << index << "\n";
+		std::cerr << "K-mer " << kmer << "="<< int_to_str(kmer)  <<" with index " << index << "\n";
 		assert(index < bphf->nbKeys());
 		initial_kmers.emplace_back(kmer);
 		ExperimentCount num_exp = 0;
 		ifs.read(reinterpret_cast<char*>(&num_exp), sizeof(ExperimentCount));
-		if(!ifs.good()) {  error("Error reading from file " + filename); exit(EXIT_FAILURE); }
-		std::cerr << "num exp=" << num_exp <<"\n";
+		if(!ifs.good()) throw std::runtime_error("could not read experiment count for k-mer "+std::to_string(kmer)+", file truncated");
+		std::cerr << " num exp=" << num_exp <<"\n";
 		if(num_exp>0) {
 			if(append) kmer2countmap[index] = new CountMap();
 			for(int i=0; i < static_cast<int>(num_exp); i++) {
 				ExperimentId exp_id = 0;
 				ifs.read(reinterpret_cast<char*>(&exp_id), sizeof(ExperimentId));
-				if(!ifs.good()) {  error("Error reading from file " + filename); exit(EXIT_FAILURE); }
+				if(!ifs.good()) throw std::runtime_error("could not read experiment id for k-mer "+std::to_string(kmer)+", file truncated");
 				KmerCount count = 0;
 				ifs.read(reinterpret_cast<char*>(&count), sizeof(KmerCount));
-				if(!ifs.good()) {  error("Error reading from file " + filename); exit(EXIT_FAILURE); }
+				if(!ifs.good()) throw std::runtime_error("could not read k-mer count for experiment id "+std::to_string(exp_id)+", file truncated");
 				std::cerr << " expid=" << exp_id << " count=" << count << "\n";
 				if(append) kmer2countmap[index]->emplace(exp_id,count);
 			}
@@ -77,17 +142,44 @@ void read_database(const std::string & filename,
 	}
 
 	// read metadata section
-	struct HeaderDbMetadata m;
+	struct HeaderDbMetadata m_in;
+	struct HeaderDbMetadata m_ref;
 
-	ifs.read(reinterpret_cast<char*>(&m.label), sizeof(m.label));
-	if(!ifs.good()) {  error("Error reading from file " + filename); exit(EXIT_FAILURE); }
-	if(m.label[0] != 'M' || m.label[1] != 'E' || m.label[7] != 'A') { error("Error reading from file " + filename); exit(EXIT_FAILURE); }
+	ifs.read(reinterpret_cast<char*>(&m_in.label), sizeof(m_in.label));
+	if(!ifs.good()) throw std::runtime_error("could not read metadata header, file truncated");
+	if(memcmp(m_in.label,m_ref.label,8)!=0) throw std::runtime_error("invalid metadata header, file corruption detected");
 
-	ifs.read(reinterpret_cast<char*>(&m.numExp), sizeof(m.numExp));
-	if(!ifs.good()) {  error("Error reading from file " + filename); exit(EXIT_FAILURE); }
-	std::cerr << "numMetaExp=" << m.numExp << "\n";
+	ifs.read(reinterpret_cast<char*>(&m_in.numExp), sizeof(m_in.numExp));
+	if(!ifs.good()) throw std::runtime_error("could not read number of experiments in metadata section, file truncated");
+	std::cerr << "numMetaExp=" << m_in.numExp << "\n";
 
-	// continue reading metadata, add field for sample description 
+	// continue reading metadata, add field for sample description
+	for(uint64_t n = 1; n <= m_in.numExp; n++) {
+		ExperimentId exp_id = 0;
+		ifs.read(reinterpret_cast<char*>(&exp_id), sizeof(exp_id));
+		if(!ifs.good()) throw std::runtime_error("could not read experiment id for experiment #"+std::to_string(n)+", file truncated");
+		assert(exp_id > 0);
+		std::cerr << "Experiment " << exp_id << "\n";
+		ReadCount read_count = 0;
+		ifs.read(reinterpret_cast<char*>(&read_count), sizeof(read_count));
+		if(!ifs.good()) throw std::runtime_error("could not read count for experiment "+std::to_string(exp_id)+", file truncated");
+		std::cerr << "  Read count= " << read_count << "\n";
+		std::string exp_name;
+		getline(ifs, exp_name,'\0');
+		if(!ifs.good()) throw std::runtime_error("could not read experiment name for experiment"+std::to_string(exp_id)+", file truncated");
+		assert(exp_name.length() > 0);
+		std::cerr << "  Name=>>" << exp_name << "<<\n";
+		std::string exp_desc;
+		getline(ifs, exp_desc,'\0');
+		if(!ifs.good()) throw std::runtime_error("could not read experiment desc for experiment"+std::to_string(exp_id)+", file truncated");
+		std::cerr << "  Desc=>>" << exp_desc << "<<\n";
+		exp_id2name.emplace(exp_id,exp_name);
+		exp_id2desc.emplace(exp_id,exp_desc);
+		exp_id2readcount.emplace(exp_id,read_count);
+		exp_name2id.emplace(exp_name,exp_id);
+	}
+	// there should be nothing else left after this point
+	if(ifs.peek() != EOF)  throw std::runtime_error("file has extra bytes, file corruption detected");
 
 }
 

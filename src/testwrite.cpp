@@ -39,7 +39,7 @@ int main(int argc, char** argv) {
 	struct HeaderDbFile hf;
 	struct HeaderDbKmers hk;
 	struct HeaderDbMetadata hm;
-	hf.dbVer = 1;
+	hf.dbVer = 2;
 	hk.numKmer = 2;
 	hm.numExp = 2;
 
@@ -48,13 +48,19 @@ int main(int argc, char** argv) {
 	ExperimentCount c1 = 2;
 	ExperimentCount c2 = 0;
 	ExperimentId i1 = 1;
+	ReadCount r1 = 6000000;
 	KmerCount kc1 = 200;
 	ExperimentId i2 = 2;
+	ReadCount r2 = 12000000;
 	KmerCount kc2 = 500;
+	std::string n1 = "myexperiment1";
+	std::string d1 = "NEURON 00";
+	std::string n2 = "myexperiment2";
+	std::string d2 = "glia";
 
 	std::ofstream os("testdb.bin", std::ios::out | std::ios::binary);
 	if(!os.is_open()) {  error("Could not open file "); exit(EXIT_FAILURE); }
-	os.write(reinterpret_cast<const char *>(&hf.kiq),sizeof(hf.kiq));
+	os.write(reinterpret_cast<const char *>(&hf.magic),sizeof(hf.magic));
 	os.write(reinterpret_cast<const char *>(&hf.dbVer),sizeof(hf.dbVer));
 	os.write(reinterpret_cast<const char *>(&hk.numKmer),sizeof(hk.numKmer));
 	os.write(reinterpret_cast<const char *>(&k1),sizeof(k1));
@@ -67,6 +73,17 @@ int main(int argc, char** argv) {
 	os.write(reinterpret_cast<const char *>(&c2),sizeof(c2));
 	os.write(reinterpret_cast<const char *>(&hm.label),sizeof(hm.label));
 	os.write(reinterpret_cast<const char *>(&hm.numExp),sizeof(hm.numExp));
+
+		os.write(reinterpret_cast<const char *>(&i1),sizeof(i1));
+		os.write(reinterpret_cast<const char *>(&r1),sizeof(r1));
+		os.write(n1.c_str(),n1.length() + 1);
+		os.write(d1.c_str(),d1.length() + 1);
+
+		os.write(reinterpret_cast<const char *>(&i2),sizeof(i2));
+		os.write(reinterpret_cast<const char *>(&r2),sizeof(r2));
+		os.write(n2.c_str(),n2.length() + 1);
+		os.write(d2.c_str(),d2.length() + 1);
+
 	os.close();
 
 }
