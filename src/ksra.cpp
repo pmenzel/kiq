@@ -30,12 +30,11 @@
 
 void usage_ksra() {
 	print_usage_header();
-	fprintf(stderr, "Usage:\n   kiq sra -i <file> -k <file> -m <file> -l <file> [-a] [-z <int>]\n");
+	fprintf(stderr, "Usage:\n   kiq sra -i <file> -k <file> -l <file> [-a] [-z <int>]\n");
 	fprintf(stderr, "\n");
 	fprintf(stderr, "Mandatory arguments:\n");
 	fprintf(stderr, "   -i FILENAME   Name of index file\n");
 	fprintf(stderr, "   -k FILENAME   Name of k-mer count database file\n");
-	fprintf(stderr, "   -m FILENAME   Name of sample metadata file\n");
 	fprintf(stderr, "   -l FILENAME   Name of file with sample list in TSV format \n");
 	fprintf(stderr, "\n");
 	fprintf(stderr, "Optional arguments:\n");
@@ -58,13 +57,12 @@ int main_ksra(int argc, char** argv) {
 
 	std::string filename_index;
 	std::string filename_db;
-	std::string filename_meta;
 	std::string filename_inputlist;
 
 	ncbi::NGS::setAppVersionString("kiq-0.1");
 	// Read command line params
 	int c;
-	while ((c = getopt(argc, argv, "hdvai:k:m:l:z:")) != -1) {
+	while ((c = getopt(argc, argv, "hdvai:k:l:z:")) != -1) {
 		switch (c)  {
 			case 'h':
 				usage_ksra();
@@ -74,8 +72,6 @@ int main_ksra(int argc, char** argv) {
 				verbose = true; break;
 			case 'a':
 				append = true; break;
-			case 'm':
-				filename_meta = optarg; break;
 			case 'k':
 				filename_db = optarg; break;
 			case 'i':
@@ -92,7 +88,6 @@ int main_ksra(int argc, char** argv) {
 	}
 	if(filename_index.length() == 0) { error("Please specify the name of the index file, using the -i option."); usage_ksra(); }
 	if(filename_db.length() == 0) { error("Please specify the name of the database file, using the -k option."); usage_ksra(); }
-	if(filename_meta.length() == 0) { error("Please specify the name of the metadata file, using the -m option."); usage_ksra(); }
 	if(filename_inputlist.length() == 0) { error("Please specify the name of the sample list file, using the -l option."); usage_ksra(); }
 
 	boophf_t * bphf = new boomphf::mphf<u_int64_t,hasher_t>();
@@ -101,20 +96,24 @@ int main_ksra(int argc, char** argv) {
 	KmerIndex n_elem = (KmerIndex)bphf->nbKeys();
 	std::vector<Kmer> initial_kmers;
 	pCountMap * kmer2countmap = new pCountMap[n_elem](); // init new array of size n_elem
+	ExpId2Name exp_id2name;
+	ExpId2Desc exp_id2desc;
+	ExpName2Id exp_name2id;
+	ExpId2ReadCount exp_id2readcount;
 
-	read_kmer_database(filename_db,initial_kmers,kmer2countmap,bphf,append);
+	try {
+		read_database(filename_db, initial_kmers, kmer2countmap, bphf, append, exp_id2name, exp_id2desc, exp_name2id, exp_id2readcount);
+	}
+	catch(std::runtime_error e) {
+		std::cerr << "Error while reading database (" << e.what() << ")." << std::endl;
+		exit(EXIT_FAILURE);
+	}
 
 	std::unordered_set<Kmer> initial_kmers_set;
 	initial_kmers_set.insert(initial_kmers.cbegin(),initial_kmers.cend());
 
-	ExpId2Name exp_id2name;
-	ExpName2Id exp_name2id;
-	ExpId2ReadCount exp_id2readcount;
-
 	ExperimentId experiment_numericid = 0;
-
 	if(append) {
-		read_experiment_database(filename_meta, exp_id2name, exp_name2id, exp_id2readcount);
 		experiment_numericid = (ExperimentId)exp_id2name.size();
 	}
 
@@ -177,7 +176,7 @@ int main_ksra(int argc, char** argv) {
 			std::string sequence(pSeq,l);
 			//std::cout << sequence << "\n";
 			strip(sequence); // remove non-alphabet chars
-			if(sequence.length()>=K) {
+			if(sequence.length()>=KMER_K) {
 				queue->push(new ReadItem(sequence));
 			}
 			if(count++ % 100000 == 0) {
@@ -229,11 +228,8 @@ int main_ksra(int argc, char** argv) {
 			}
 		}
 
-		// SAVE DATABASE to file
-		write_kmer_database(filename_db, bphf, kmer2countmap, initial_kmers);
-
-		// save experiment metadata to file
-		write_experiment_database(filename_meta,exp_id2name,exp_id2readcount);
+		// save database to file
+		write_database(filename_db, initial_kmers, kmer2countmap, bphf, exp_id2name, exp_id2desc, exp_id2readcount);
 
 	} // end while list of all experiments to read from files
 

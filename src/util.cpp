@@ -98,20 +98,16 @@ void read_database(const std::string & filename,
 	struct HeaderDbFile h_ref;
 	ifs.read(reinterpret_cast<char*>(&h_in.magic), sizeof(h_in.magic));
 	if(!ifs.good()) throw std::runtime_error("could not read magic bytes, file truncated");
-	std::cerr << ">>"<<h_in.magic << "<<memcmp=" << memcmp(&(h_in.magic),&(h_ref.magic),3) << "\n";
 	if(memcmp(h_in.magic,h_ref.magic,3)!=0) throw std::runtime_error("wrong file type detected");
 	if(h_in.magic[3] != h_ref.magic[3]) throw std::runtime_error("file corruption detected");
 
 	ifs.read(reinterpret_cast<char*>(&h_in.dbVer), sizeof(h_in.dbVer));
 	if(!ifs.good())  throw std::runtime_error("could not read version, file truncated");
-	std::cerr << "ver=" << h_in.dbVer << "\n";
-
 
 	// read k-mer section
 	struct HeaderDbKmers k;
 	ifs.read(reinterpret_cast<char*>(&k.numKmer), sizeof(k.numKmer));
 	if(!ifs.good()) throw std::runtime_error("could not read number of kmers, file truncated");
-	std::cerr << "numKmer=" << k.numKmer << "\n";
 	if(k.numKmer != bphf->nbKeys()) throw std::runtime_error("Mismatching number of k-mers in hash index and k-mer database");
 
 	for(uint64_t n = 1; n <= k.numKmer; n++) {
@@ -119,13 +115,11 @@ void read_database(const std::string & filename,
 		ifs.read(reinterpret_cast<char*>(&kmer), sizeof(Kmer));
 		if(!ifs.good()) throw std::runtime_error("could not read k-mer #"+std::to_string(n)+", file truncated");
 		KmerIndex index = bphf->lookup(kmer);
-		std::cerr << "K-mer " << kmer << "="<< int_to_str(kmer)  <<" with index " << index << "\n";
 		assert(index < bphf->nbKeys());
 		initial_kmers.emplace_back(kmer);
 		ExperimentCount num_exp = 0;
 		ifs.read(reinterpret_cast<char*>(&num_exp), sizeof(ExperimentCount));
 		if(!ifs.good()) throw std::runtime_error("could not read experiment count for k-mer "+std::to_string(kmer)+", file truncated");
-		std::cerr << " num exp=" << num_exp <<"\n";
 		if(num_exp>0) {
 			if(append) kmer2countmap[index] = new CountMap();
 			for(int i=0; i < static_cast<int>(num_exp); i++) {
@@ -135,7 +129,6 @@ void read_database(const std::string & filename,
 				KmerCount count = 0;
 				ifs.read(reinterpret_cast<char*>(&count), sizeof(KmerCount));
 				if(!ifs.good()) throw std::runtime_error("could not read k-mer count for experiment id "+std::to_string(exp_id)+", file truncated");
-				std::cerr << " expid=" << exp_id << " count=" << count << "\n";
 				if(append) kmer2countmap[index]->emplace(exp_id,count);
 			}
 		}
@@ -151,7 +144,6 @@ void read_database(const std::string & filename,
 
 	ifs.read(reinterpret_cast<char*>(&m_in.numExp), sizeof(m_in.numExp));
 	if(!ifs.good()) throw std::runtime_error("could not read number of experiments in metadata section, file truncated");
-	std::cerr << "numMetaExp=" << m_in.numExp << "\n";
 
 	// continue reading metadata, add field for sample description
 	for(uint64_t n = 1; n <= m_in.numExp; n++) {
@@ -159,20 +151,16 @@ void read_database(const std::string & filename,
 		ifs.read(reinterpret_cast<char*>(&exp_id), sizeof(exp_id));
 		if(!ifs.good()) throw std::runtime_error("could not read experiment id for experiment #"+std::to_string(n)+", file truncated");
 		assert(exp_id > 0);
-		std::cerr << "Experiment " << exp_id << "\n";
 		ReadCount read_count = 0;
 		ifs.read(reinterpret_cast<char*>(&read_count), sizeof(read_count));
 		if(!ifs.good()) throw std::runtime_error("could not read count for experiment "+std::to_string(exp_id)+", file truncated");
-		std::cerr << "  Read count= " << read_count << "\n";
 		std::string exp_name;
 		getline(ifs, exp_name,'\0');
 		if(!ifs.good()) throw std::runtime_error("could not read experiment name for experiment"+std::to_string(exp_id)+", file truncated");
 		assert(exp_name.length() > 0);
-		std::cerr << "  Name=>>" << exp_name << "<<\n";
 		std::string exp_desc;
 		getline(ifs, exp_desc,'\0');
 		if(!ifs.good()) throw std::runtime_error("could not read experiment desc for experiment"+std::to_string(exp_id)+", file truncated");
-		std::cerr << "  Desc=>>" << exp_desc << "<<\n";
 		exp_id2name.emplace(exp_id,exp_name);
 		exp_id2desc.emplace(exp_id,exp_desc);
 		exp_id2readcount.emplace(exp_id,read_count);
