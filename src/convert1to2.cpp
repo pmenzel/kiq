@@ -42,10 +42,10 @@ int main(int argc, char** argv) {
 		}
 	}
 
-	if(filename_index.length() == 0) { error("Please specify the name of the index file, using the -i option.");  }
-	if(filename_db_in.length() == 0) { error("Please specify the name of the database input file, using the -k option.");  }
-	if(filename_db_out.length() == 0) { error("Please specify the name of the database output file, using the -o option.");  }
-	if(filename_meta_in.length() == 0) { error("Please specify the name of the metadata input file, using the -m option.");  }
+	if(filename_index.length() == 0) { error("Please specify the name of the index file, using the -i option."); exit(EXIT_FAILURE);  }
+	if(filename_db_in.length() == 0) { error("Please specify the name of the database input file, using the -k option."); exit(EXIT_FAILURE); }
+	if(filename_db_out.length() == 0) { error("Please specify the name of the database output file, using the -o option."); exit(EXIT_FAILURE); }
+	if(filename_meta_in.length() == 0) { error("Please specify the name of the metadata input file, using the -m option."); exit(EXIT_FAILURE); }
 
 	boophf_t * bphf = new boomphf::mphf<u_int64_t,hasher_t>();
 	load_index(filename_index, bphf);

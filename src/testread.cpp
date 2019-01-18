@@ -50,14 +50,14 @@ int main(int argc, char** argv) {
 	ExpId2ReadCount exp_id2readcount;
 
 	try {
-		read_database("testdb.bin", initial_kmers, kmer2count, bphf, true, exp_id2name, exp_id2desc, exp_name2id, exp_id2readcount);
+		read_database("kiq_db.bin", initial_kmers, kmer2count, bphf, true, exp_id2name, exp_id2desc, exp_name2id, exp_id2readcount);
 	}
 	catch(std::runtime_error e) {
 		std::cerr << "Error while reading database (" << e.what() << ")." << std::endl;
 		exit(EXIT_FAILURE);
 	}
 
-	write_database("testdbout.bin", initial_kmers, kmer2count, bphf, exp_id2name, exp_id2desc, exp_id2readcount);
+	write_database("kiq_db_out.bin", initial_kmers, kmer2count, bphf, exp_id2name, exp_id2desc, exp_id2readcount);
 	
 
 }

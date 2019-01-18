@@ -59,12 +59,12 @@ void write_database(const std::string & filename, const std::vector<Kmer> & init
 	os.write(reinterpret_cast<const char *>(&hdr_m.numExp),sizeof(hdr_m.numExp));
 
 	for(auto const & it : exp_id2name) {
-		ExperimentId exp_id = it.first;
-		std::string exp_name = it.second;
-		assert(exp_id2desc.count(exp_id) > 0);
-		std::string exp_desc = exp_id2desc.at(exp_id);
+		const ExperimentId exp_id = it.first;
+		const std::string exp_name = it.second;
+		auto const it_desc = exp_id2desc.find(exp_id);
+		const std::string exp_desc = ( it_desc != exp_id2desc.end() ) ? it_desc->second : "";
 		assert(exp_id2readcount.count(exp_id) > 0);
-		ReadCount readcount = exp_id2readcount.at(exp_id);
+		const ReadCount readcount = exp_id2readcount.at(exp_id);
 
 		os.write(reinterpret_cast<const char *>(&exp_id),sizeof(ExperimentId));
 		os.write(reinterpret_cast<const char *>(&readcount),sizeof(ReadCount));
@@ -112,7 +112,7 @@ void read_database(const std::string & filename,
 	ifs.read(reinterpret_cast<char*>(&k.numKmer), sizeof(k.numKmer));
 	if(!ifs.good()) throw std::runtime_error("could not read number of kmers, file truncated");
 	std::cerr << "numKmer=" << k.numKmer << "\n";
-	//if(k.numKmer != bphf->nbKeys()) { error("Error: Mismatching number of k-mers in hash index and k-mer database " + filename); exit(EXIT_FAILURE); }
+	if(k.numKmer != bphf->nbKeys()) throw std::runtime_error("Mismatching number of k-mers in hash index and k-mer database");
 
 	for(uint64_t n = 1; n <= k.numKmer; n++) {
 		Kmer kmer;
