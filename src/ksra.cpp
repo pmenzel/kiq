@@ -133,6 +133,15 @@ int main_ksra(int argc, char** argv) {
 		}
 		std::string experiment_stringid = line.substr(0,tab);
 		std::string filename_seq = line.substr(tab+1);
+		std::string experiment_desc;
+		size_t tab2 = line.find_first_of('\t',tab+1);
+		if(tab2 == std::string::npos) { // no second tab found in line, then filename ist from first tab to the line end
+			filename_seq = line.substr(tab+1);
+		}
+		else { //second tab found in line
+			filename_seq = line.substr(tab+1,tab2-tab-1);
+			experiment_desc = line.substr(tab2+1);
+		}
 
 		if(exp_name2id.count(experiment_stringid) > 0) { // experiment name is already in DB
 			if(append) {
@@ -144,6 +153,7 @@ int main_ksra(int argc, char** argv) {
 			experiment_numericid = (ExperimentId)exp_id2name.size() + 1;
 			exp_id2name.emplace(experiment_numericid,experiment_stringid);
 			exp_name2id.emplace(experiment_stringid,experiment_numericid);
+			exp_id2desc.emplace(experiment_numericid,experiment_desc);
 		}
 
 		memset(tmp_counts_atomic,0,n_elem*sizeof(std::atomic<KmerCount>));
@@ -174,7 +184,6 @@ int main_ksra(int argc, char** argv) {
 			const char * pSeq = bases.data();
 			uint64_t l = bases.size();
 			std::string sequence(pSeq,l);
-			//std::cout << sequence << "\n";
 			strip(sequence); // remove non-alphabet chars
 			if(sequence.length()>=KMER_K) {
 				queue->push(new ReadItem(sequence));

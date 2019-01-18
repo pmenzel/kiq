@@ -265,19 +265,38 @@ void read_kmer_database(const std::string & filename, std::vector<Kmer> & initia
 	assert(count == bphf->nbKeys());
 }
 
-void write_initial_kmer_database(const std::string & filename, const std::vector<Kmer> & initial_kmers) {
+void write_initial_database(const std::string & filename, const std::vector<Kmer> & initial_kmers) {
 	std::cerr << getCurrentTime() << " Writing k-mer database to file " << filename << "\n";
 	std::ofstream os(filename, std::ios::out | std::ios::binary);
 	if(!os.is_open()) {  error("Could not open file " + filename); exit(EXIT_FAILURE); }
-	KmerCount zero = 0;
+
+	// write header
+	struct HeaderDbFile hdr;
+	os.write(reinterpret_cast<const char *>(&hdr.magic),sizeof(hdr.magic));
+	os.write(reinterpret_cast<const char *>(&hdr.dbVer),sizeof(hdr.dbVer));
+
+	struct HeaderDbKmers hdr_k;
+	hdr_k.numKmer = initial_kmers.size();
+	os.write(reinterpret_cast<const char *>(&hdr_k.numKmer),sizeof(hdr_k.numKmer));
+
+	KmerCount count = 0;
 	for(Kmer it : initial_kmers) {
 		// write k-mer
 		Kmer kmer = it;
-		os.write(reinterpret_cast<const char *>(&kmer),sizeof(Kmer));
+		os.write(reinterpret_cast<const char *>(&kmer),sizeof(kmer));
 		// write 0
-		os.write(reinterpret_cast<const char *>(&zero),sizeof(KmerCount));
+		os.write(reinterpret_cast<const char *>(&count),sizeof(count));
 	}
+
+	struct HeaderDbMetadata hdr_m;
+	hdr_m.numExp = 0;
+	os.write(reinterpret_cast<const char *>(&hdr_m.label),sizeof(hdr_m.label));
+	os.write(reinterpret_cast<const char *>(&hdr_m.numExp),sizeof(hdr_m.numExp));
+	
 	os.close();
+	if(!os) { // writing failed at some point
+		error("Writing to file " + filename + "failed."); exit(EXIT_FAILURE); 
+	}
 }
 
 void write_kmer_database(const std::string & filename,  boophf_t * bphf,  pCountMap * kmer2countmap, const std::vector<Kmer> & initial_kmers) {

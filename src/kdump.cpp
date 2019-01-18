@@ -137,6 +137,7 @@ int main_kdump(int argc, char** argv) {
 	else if(mode=="stats") {
 		// number of experiments in db
 		std::cout << "Number of experiments\t" << exp_id2name.size() <<"\n";
+		std::cout << "Number of k-mers\t" << n_elem <<"\n";
 		// count number of k-mers with at least one experiment
 		int count = 0;
 		for(auto it : initial_kmers) {

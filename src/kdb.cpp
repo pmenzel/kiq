@@ -120,12 +120,21 @@ int main_kdb(int argc, char** argv) {
 	std::string line;
 	while(getline(ifs_inputlist, line)) {
 		if(line.length() == 0) { continue; }
-		size_t tab = line.find_first_of("\t");
+		size_t tab = line.find_first_of('\t');
 		if(tab == std::string::npos || tab == 0) {
 			continue;
 		}
 		std::string experiment_stringid = line.substr(0,tab);
-		std::string filename_seq = line.substr(tab+1);
+		std::string filename_seq;
+		std::string experiment_desc;
+		size_t tab2 = line.find_first_of('\t',tab+1);
+		if(tab2 == std::string::npos) { // no second tab found in line, then filename ist from first tab to the line end
+			filename_seq = line.substr(tab+1);
+		}
+		else { //second tab found in line
+			filename_seq = line.substr(tab+1,tab2-tab-1);
+			experiment_desc = line.substr(tab2+1);
+		}
 
 		if(exp_name2id.count(experiment_stringid) > 0) {
 			if(append) {
@@ -137,6 +146,7 @@ int main_kdb(int argc, char** argv) {
 			experiment_numericid = (ExperimentId)exp_id2name.size() + 1;
 			exp_id2name.emplace(experiment_numericid,experiment_stringid);
 			exp_name2id.emplace(experiment_stringid,experiment_numericid);
+			exp_id2desc.emplace(experiment_numericid,experiment_desc);
 		}
 
 		memset(tmp_counts_atomic,0,n_elem*sizeof(std::atomic<KmerCount>));

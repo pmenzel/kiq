@@ -65,7 +65,7 @@ void load_index(const std::string & filename_index,  boophf_t * bphf);
 
 void read_kmer_database(const std::string & filename,std::vector<Kmer> & initial_kmers, pCountMap * kmer2countmap, boophf_t * bphf, bool append);
 void write_kmer_database(const std::string & filename, boophf_t * bphf, pCountMap * kmer2countmap, const std::vector<Kmer> & initial_kmers);
-void write_initial_kmer_database(const std::string & filename, const std::vector<Kmer> & initial_kmers);
+void write_initial_database(const std::string & filename, const std::vector<Kmer> & initial_kmers);
 
 void read_experiment_database(const std::string & filename, ExpId2Name & exp_id2name, ExpId2ReadCount & exp_id2readcount);
 void read_experiment_database(const std::string & filename, ExpId2Name & exp_id2name, ExpName2Id & exp_name2id, ExpId2ReadCount & exp_id2readcount);

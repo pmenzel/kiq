@@ -15,7 +15,7 @@
 
 void usage_kindex() {
 	print_usage_header();
-	fprintf(stderr, "Usage:\n   kiq index -i <file> -k <file> -m <file> -p <mode>\n");
+	fprintf(stderr, "Usage:\n   kiq index -i <file> -k <file> -l <file>\n");
 	fprintf(stderr, "\n");
 	fprintf(stderr, "Mandatory arguments:\n");
 	fprintf(stderr, "   -i FILENAME   Name of index file\n");
@@ -39,7 +39,7 @@ int main_kindex(int argc, char** argv) {
 
 	// Read command line params
 	int c;
-	while ((c = getopt(argc, argv, "hdvai:k:m:l:z:")) != -1) {
+	while ((c = getopt(argc, argv, "hdvai:k:l:z:")) != -1) {
 		switch (c)  {
 			case 'h':
 				usage_kindex();
@@ -90,7 +90,7 @@ int main_kindex(int argc, char** argv) {
 	std::cerr << getCurrentTime() << " Calculating hash functions for " << initial_kmers.size() << " k-mers\n";
 	boophf_t * bphf = new boomphf::mphf<u_int64_t,hasher_t>(initial_kmers.size(),initial_kmers,1);
 
-	write_initial_kmer_database(filename_db, initial_kmers);
+	write_initial_database(filename_db, initial_kmers);
 
 	std::cerr << getCurrentTime() << " Writing index to file " << filename_index << "\n";
 	std::ofstream os(filename_index, std::ofstream::out);
