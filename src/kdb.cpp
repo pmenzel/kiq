@@ -115,7 +115,7 @@ int main_kdb(int argc, char** argv) {
 	// FOR EACH EXPERIMENT
 
 	std::ifstream ifs_inputlist(filename_inputlist);
-	if(!ifs_inputlist.is_open()) { std::cerr << "Cannot open file " << filename_inputlist << std::endl; exit(EXIT_FAILURE); }
+	if(!ifs_inputlist) { std::cerr << "Cannot open file " << filename_inputlist << std::endl; exit(EXIT_FAILURE); }
 
 	std::string line;
 	while(getline(ifs_inputlist, line)) {
@@ -128,10 +128,10 @@ int main_kdb(int argc, char** argv) {
 		std::string filename_seq;
 		std::string experiment_desc;
 		size_t tab2 = line.find_first_of('\t',tab+1);
-		if(tab2 == std::string::npos) { // no second tab found in line, then filename ist from first tab to the line end
+		if(tab2 == std::string::npos) { // no second tab found in line, then filename is from first tab to the line end
 			filename_seq = line.substr(tab+1);
 		}
-		else { //second tab found in line
+		else { //second tab found in line, filename is between both tabs and description is from 2nd tab to line end
 			filename_seq = line.substr(tab+1,tab2-tab-1);
 			experiment_desc = line.substr(tab2+1);
 		}

@@ -86,7 +86,9 @@ Old file formats
 ============================================
 ============================================
 
-KIQ version 0.1.0
+DATABASE FORMAT VERSION 2
+
+used in KIQ version 0.1.0.
 
 In the first version, the k-mer counts and experiment metadata are split into
 two files. Both files do not contain headers.

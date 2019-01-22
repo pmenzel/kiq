@@ -14,12 +14,8 @@
 #include <deque>
 #include <stdexcept>
 
-#include "ProducerConsumerQueue/ProducerConsumerQueue.hpp"
-#include "zstr/zstr.hpp"
 #include "BooPHF/BooPHF.h"
 #include "util.hpp"
-#include "ReadItem.hpp"
-#include "CountThread.hpp"
 
 
 void usage_kdump() {

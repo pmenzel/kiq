@@ -15,12 +15,12 @@ all: makefile kiq testread testwrite convert1to2
 	mkdir -p ../bin && cp kiq ../bin/
 
 sra: CXXFLAGS:=$(CXXFLAGS) -D KIQ_SRA
-sra: makefile main.o kdump.o kindex.o kquery.o kdb.o util.o ReadItem.o CountThread.o ksra.o
-	$(CXX) $(LDFLAGS) -o kiq kdump.o main.o kindex.o kdb.o kquery.o util.o ReadItem.o CountThread.o ksra.o $(LDLIBS_SRA)
+sra: makefile main.o kdump.o kindex.o kquery.o kdb.o kmodify.o util.o ReadItem.o CountThread.o ksra.o
+	$(CXX) $(LDFLAGS) -o kiq kdump.o main.o kindex.o kdb.o kquery.o util.o kmodify.o ReadItem.o CountThread.o ksra.o $(LDLIBS_SRA)
 	mkdir -p ../bin && cp kiq ../bin/
 
-kiq: makefile main.o kdump.o kindex.o kquery.o kdb.o util.o ReadItem.o CountThread.o
-	$(CXX) $(LDFLAGS) -o kiq kdump.o main.o kindex.o kdb.o kquery.o util.o ReadItem.o CountThread.o $(LDLIBS)
+kiq: makefile main.o kdump.o kindex.o kquery.o kdb.o kmodify.o util.o ReadItem.o CountThread.o
+	$(CXX) $(LDFLAGS) -o kiq kdump.o main.o kindex.o kdb.o kquery.o kmodify.o util.o ReadItem.o CountThread.o $(LDLIBS)
 
 testread: util.o testread.o
 	$(CXX) $(LDFLAGS) -o testread util.o testread.o $(LDLIBS)

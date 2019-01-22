@@ -46,6 +46,7 @@ void write_database(const std::string & filename, const std::vector<Kmer> & init
 		if(num_exp > 0) {
 			for(auto const & it_exp : *kmer2countmap[index]) {
 				ExperimentId exp_id = it_exp.first;
+				assert(exp_id2name.find(exp_id) != exp_id2name.end());
 				KmerCount count = kmer2countmap[index]->at(it_exp.first);
 				os.write(reinterpret_cast<const char *>(&exp_id),sizeof(exp_id));
 				os.write(reinterpret_cast<const char *>(&count),sizeof(count));
