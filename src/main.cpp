@@ -3,7 +3,7 @@
 
 	Author: Peter Menzel <pmenzel@gmail.com>
 
-	Copyright (C) 2018 Peter Menzel
+	Copyright (C) 2018,2019 Peter Menzel
 
 	See the file README.md for documentation.
 **************************************************/
@@ -28,6 +28,7 @@
 #include "kquery.hpp"
 #include "kdb.hpp"
 #include "kdump.hpp"
+#include "kmodify.hpp"
 #ifdef KIQ_SRA
 #include "ksra.hpp"
 #endif
@@ -60,6 +61,8 @@ int main(int argc, char** argv) {
 #endif
 	else if(strcmp(argv[1], "dump") == 0)
 		ret = main_kdump(argc-1, argv+1);
+	else if(strcmp(argv[1], "modify") == 0)
+		ret = main_kmodify(argc-1, argv+1);
 	else {
 		ret = 1;
 		usage();
@@ -70,12 +73,19 @@ int main(int argc, char** argv) {
 
 void usage() {
 	print_usage_header();
-	fprintf(stderr, "Usage:\n   kiq [ index | db | sra | query | dump ] ...\n");
+#ifdef KIQ_SRA
+	fprintf(stderr, "Usage:\n   kiq [ index | db | sra | query | dump | modify ] ...\n");
+#else
+	fprintf(stderr, "Usage:\n   kiq [ index | db | query | dump | modify ] ...\n");
+#endif
 	fprintf(stderr, "\n");
 	fprintf(stderr, "     index    create index from initial list of k-mers\n");
-	fprintf(stderr, "     db       create k-mer count database from FASTQ files\n");
+	fprintf(stderr, "     db       create k-mer count database from FASTA/Q files\n");
+#ifdef KIQ_SRA
 	fprintf(stderr, "     sra      create k-mer count database from SRA files\n");
+#endif
 	fprintf(stderr, "     query    query k-mers against count database\n");
 	fprintf(stderr, "     dump     print database content / stats\n");
+	fprintf(stderr, "     modify   modify database content\n");
 
 }

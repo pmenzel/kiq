@@ -1,7 +1,100 @@
-KIQ version 0.1.0
+DATABASE FORMAT VERSION 2
+
+used from KIQ version 0.2.0.
+Since format version 2, k-mer counts and metadata are stored in a single file,
+which contains three parts.
+
+1. Header
+----------
+The file header starts with four fixed characters (KIQ followd by newline),
+followed by the database format version.
+
++-+-+-+----+------------+
+|K|I|Q|0x0A| db_version |
++-+-+-+----+------------+
+
+K,I,Q,0x0A  uint8_t (char)
+db_version  uint32_t
+
+
+2. k-mer section
+-----------------
+This section starts with a header containing the number of k-mers in the
+database, followed by the data section containing the k-mers and their
+associated experiments.
+
+Header:
++------------+
+| num_kmer   |
++------------+
+
+num_kmer	uint64_t
+
+Data section:
++---------+-----------+----------+---------+
+| k-mer   | num_exp   | exp_id   | count   |
++---------+-----------+----------+---------+
+                      | exp_id   | count   |
+                      +----------+---------+
+                                ...
++---------+-----------+----------+---------+
+| k-mer   | num_exp   | exp_id   | count   |
++---------+-----------+----------+---------+
+                      | exp_id   | count   |
+                      +----------+---------+
+                                ...
+                     ...
+
+k-mer     uint64_t
+num_exp   uint32_t
+exp_id    uint32_t
+count     uint64_t
+
+
+3. Metadata section
+--------------------
+This section starts with a fixed header, 8 chars saying METADATA, followed by
+the number of experiments in the database and the data section containing the
+metadata for each experiment.
+
+Header:
++--------+------------+
+|METADATA| num_exp    |
++--------+------------+
+
+METADATA  8 x uint8_t (char)
+num_exp   uint64_t
+
+Data section:
++----------+--------------+------------+-----+------------+-----+
+| exp_id   | read_count   | exp_name   | 0   | exp_desc   | 0   |
++----------+--------------+------------+-----+------------+-----+
+| exp_id   | read_count   | exp_name   | 0   | exp_desc   | 0   |
++----------+--------------+------------+-----+------------+-----+
+                         ...
+
+exp_id    uint32_t
+count     uint64_t
+exp_name  sequence of chars, null-terminated
+exp_desc  sequence of chars, null-terminated
+
+
+
+
+============================================
+Old file formats
+============================================
+
+DATABASE FORMAT VERSION 1
+
+used in KIQ version 0.1.0.
+
+In the first version, the k-mer counts and experiment metadata are split into
+two files. Both files do not contain headers.
 
 
 1. File with k-mer counts
+-------------------------
 
 +---------+-----------+----------+---------+
 | k-mer   | num_exp   | exp_id   | count   |
@@ -19,10 +112,11 @@ KIQ version 0.1.0
 k-mer     uint64_t
 num_exp   uint32_t
 exp_id    uint32_t
-count     uint32_t
+count     uint64_t
 
 
 2. File with metadata
+---------------------
 
 +----------+--------------+------------+-----+
 | exp_id   | read_count   | exp_name   | 0   |
@@ -33,5 +127,5 @@ count     uint32_t
 
 exp_id    uint32_t
 count     uint64_t
-exp_name  null terminated ascii string
+exp_name  sequence of chars, null-terminated
 

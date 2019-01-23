@@ -15,15 +15,14 @@
 #include "util.hpp"
 
 void usage_kquery();
-void run_query(const std::string & query, bool json, uint32_t threshold, uint32_t rpm_threshold, const std::vector<Kmer> & initial_kmers, boophf_t * bphf, pCountMap * kmer2countmap, ExpId2Name & exp_id2name, ExpId2ReadCount & exp_id2readcount);
-void run_query_all(const std::string & query, bool first, std::set<ExperimentId> &, uint32_t threshold, uint32_t rpm_threshold, const std::vector<Kmer> & initial_kmers, boophf_t * bphf, pCountMap * kmer2countmap, ExpId2ReadCount & exp_id2readcount);
-void print_exp_set(std::set<ExperimentId> & exp_set, ExpId2Name & exp_id2name, bool json);
+void run_query(const std::string & query, bool json, uint32_t threshold, uint32_t rpm_threshold, const std::vector<Kmer> & initial_kmers, boophf_t * bphf, pCountMap * kmer2countmap, const ExpId2Name & exp_id2name, const ExpId2Desc & exp_id2desc, const ExpId2ReadCount & exp_id2readcount);
+void run_query_all(const std::string & query, bool first, std::set<ExperimentId> &, uint32_t threshold, uint32_t rpm_threshold, const std::vector<Kmer> & initial_kmers, boophf_t * bphf, pCountMap * kmer2countmap, const ExpId2ReadCount & exp_id2readcount);
+void print_exp_set(std::set<ExperimentId> & exp_set, ExpId2Name & exp_id2name, ExpId2Desc & exp_id2desc, bool json);
 
 int main_kquery(int argc, char** argv) {
 
 	std::string filename_index;
 	std::string filename_db;
-	std::string filename_meta;
 	std::string filename_query;
 	std::string arg_query;
 	bool debug = false;
@@ -35,7 +34,7 @@ int main_kquery(int argc, char** argv) {
 
 	// Read command line params
 	int c;
-	while ((c = getopt(argc, argv, "hjadvr:t:i:k:m:Q:q:z:")) != -1) {
+	while ((c = getopt(argc, argv, "hjadvr:t:i:k:Q:q:z:")) != -1) {
 		switch (c)  {
 			case 'h':
 				usage_kquery();
@@ -47,8 +46,6 @@ int main_kquery(int argc, char** argv) {
 				json = true; break;
 			case 'v':
 				verbose = true; break;
-			case 'm':
-				filename_meta = optarg; break;
 			case 'k':
 				filename_db = optarg; break;
 			case 'i':
@@ -87,26 +84,27 @@ int main_kquery(int argc, char** argv) {
 	}
 	if(filename_index.length() == 0) { error("Please specify the name of the index file, using the -i option."); usage_kquery(); }
 	if(filename_db.length() == 0) { error("Please specify the name of the database file, using the -k option."); usage_kquery(); }
-	if(filename_meta.length() == 0) { error("Please specify the name of the metadata file, using the -m option."); usage_kquery(); }
 	if(filename_query.length() == 0 && arg_query.length() == 0) { error("Please specify either a query file with -q or the query k-mer(s) directly with -Q."); usage_kquery(); }
 	if(filename_query.length() > 0 && arg_query.length() > 0) { error("Please specify only one of the options -q and -Q."); usage_kquery(); }
 
 	boophf_t * bphf = new boomphf::mphf<u_int64_t,hasher_t>();
-
-	// read index
 	load_index(filename_index,bphf);
 
 	KmerIndex n_elem = (KmerIndex)bphf->nbKeys();
 	std::vector<Kmer> initial_kmers;
 	pCountMap * kmer2countmap = new pCountMap[n_elem](); // init new array of size n_elem
-
-	read_kmer_database(filename_db,initial_kmers,kmer2countmap,bphf,true);
-
 	ExpId2Name exp_id2name;
+	ExpId2Desc exp_id2desc;
 	ExpName2Id exp_name2id;
 	ExpId2ReadCount exp_id2readcount;
 
-	read_experiment_database(filename_meta, exp_id2name, exp_name2id, exp_id2readcount);
+	try {
+		read_database(filename_db, initial_kmers, kmer2countmap, bphf, true, exp_id2name, exp_id2desc, exp_name2id, exp_id2readcount);
+	}
+	catch(std::runtime_error e) {
+		std::cerr << "Error while reading database (" << e.what() << ")." << std::endl;
+		exit(EXIT_FAILURE);
+	}
 
 	std::cerr << getCurrentTime() << " Runninq query " << arg_query << "\n";
 
@@ -116,12 +114,12 @@ int main_kquery(int argc, char** argv) {
 			std::string q = arg_query.substr(0,pos);
 			if(!all_kmers) {
 				if(json) { std::cout << "{ \"results\" : [ "; }
-				run_query(q, json, threshold, rpm_threshold, initial_kmers, bphf, kmer2countmap, exp_id2name, exp_id2readcount);
+				run_query(q, json, threshold, rpm_threshold, initial_kmers, bphf, kmer2countmap, exp_id2name, exp_id2desc, exp_id2readcount);
 				size_t start = pos+1;
 				while((pos = arg_query.find(",",start)) != std::string::npos) {
 					q = arg_query.substr(start,pos - start);
 					if(json) { std::cout << ", "; }
-					run_query(q, json, threshold, rpm_threshold, initial_kmers, bphf, kmer2countmap, exp_id2name, exp_id2readcount);
+					run_query(q, json, threshold, rpm_threshold, initial_kmers, bphf, kmer2countmap, exp_id2name, exp_id2desc, exp_id2readcount);
 					start = pos +1;
 				}
 				if(json) { std::cout << " ] }\n"; }
@@ -142,12 +140,12 @@ int main_kquery(int argc, char** argv) {
 					q = arg_query.substr(start);
 					run_query_all(q, false, exp_set, threshold, rpm_threshold, initial_kmers, bphf, kmer2countmap, exp_id2readcount);
 				}
-				print_exp_set(exp_set, exp_id2name, json);
+				print_exp_set(exp_set, exp_id2name, exp_id2desc, json);
 			}
 
 		}
 		else { // single k-mer query
-			run_query(arg_query, json, threshold, rpm_threshold, initial_kmers, bphf, kmer2countmap, exp_id2name, exp_id2readcount);
+			run_query(arg_query, json, threshold, rpm_threshold, initial_kmers, bphf, kmer2countmap, exp_id2name, exp_id2desc, exp_id2readcount);
 		}
 	}
 	else if(filename_query.length() > 0) {
@@ -168,7 +166,7 @@ int main_kquery(int argc, char** argv) {
 			if(line_from_file.length() == 0) { continue; }
 			if(!all_kmers) {
 				if(json) { if(!first) { std::cout << ", "; } else { first = false; } }
-				run_query(line_from_file, json, threshold, rpm_threshold, initial_kmers, bphf, kmer2countmap, exp_id2name, exp_id2readcount);
+				run_query(line_from_file, json, threshold, rpm_threshold, initial_kmers, bphf, kmer2countmap, exp_id2name, exp_id2desc, exp_id2readcount);
 			}
 			else {
 				if(!first) {
@@ -190,7 +188,7 @@ int main_kquery(int argc, char** argv) {
 
 		if(all_kmers) {
 			//Experiments that have all k-mers from input above thresholds are now in exp_set
-			print_exp_set(exp_set, exp_id2name, json);
+			print_exp_set(exp_set, exp_id2name, exp_id2desc, json);
 		}
 
 
@@ -211,7 +209,7 @@ int main_kquery(int argc, char** argv) {
 
 }
 
-void run_query(const std::string & query, bool json, uint32_t threshold, uint32_t rpm_threshold, const std::vector<Kmer> & initial_kmers, boophf_t * bphf, pCountMap * kmer2countmap, ExpId2Name & exp_id2name, ExpId2ReadCount & exp_id2readcount) {
+void run_query(const std::string & query, bool json, uint32_t threshold, uint32_t rpm_threshold, const std::vector<Kmer> & initial_kmers, boophf_t * bphf, pCountMap * kmer2countmap, const ExpId2Name & exp_id2name, const ExpId2Desc & exp_id2desc, const ExpId2ReadCount & exp_id2readcount) {
 		if(query.length() < KMER_K){ printf("Warning, query too short:%s\n",query.c_str()); return; }
 		if(query.length() > KMER_K){ printf("Warning, query too long:%s\n",query.c_str()); return; }
 		Kmer kmer = str_to_int(query);
@@ -230,12 +228,15 @@ void run_query(const std::string & query, bool json, uint32_t threshold, uint32_
 					double rpm = (double)count / (double)exp_id2readcount.at(exp_id) * 1e6;
 					if(count > threshold && rpm > rpm_threshold) {
 						assert(exp_id2name.count(exp_id)>0);
+						std::string exp_desc = "NA";
+						auto it_desc = exp_id2desc.find(exp_id);
+						if(it_desc != exp_id2desc.end() && it_desc->second.length() > 0) exp_desc = it_desc->second; 
 						if(json) {
 							if(!first) { printf(", ");} else { first = false; }
-							printf("{ \"name\": \"%s\", \"count\":%d, \"rpm\":%f } ", exp_id2name.at(exp_id).c_str(), count, rpm);
+							printf("{ \"name\": \"%s\", \"count\":%d, \"rpm\":%f, \"desc\":\"%s\" } ", exp_id2name.at(exp_id).c_str(), count, rpm, exp_desc.c_str());
 						}
 						else {
-							printf("%s\t%s\t%d\t%f\n",query.c_str(), exp_id2name.at(exp_id).c_str(), count, rpm);
+							printf("%s\t%s\t%d\t%f\t%s\n",query.c_str(), exp_id2name.at(exp_id).c_str(), count, rpm, exp_desc.c_str());
 						}
 					}
 				}
@@ -250,7 +251,7 @@ void run_query(const std::string & query, bool json, uint32_t threshold, uint32_
 		if(json) std::cout << "]}\n";
 }
 
-void run_query_all(const std::string & query, bool first, std::set<ExperimentId> & exp_set, uint32_t threshold, uint32_t rpm_threshold, const std::vector<Kmer> & initial_kmers, boophf_t * bphf, pCountMap * kmer2countmap, ExpId2ReadCount & exp_id2readcount) {
+void run_query_all(const std::string & query, bool first, std::set<ExperimentId> & exp_set, uint32_t threshold, uint32_t rpm_threshold, const std::vector<Kmer> & initial_kmers, boophf_t * bphf, pCountMap * kmer2countmap, const ExpId2ReadCount & exp_id2readcount) {
 		if(query.length() < KMER_K){ printf("Warning, query too short:%s\n",query.c_str()); return; }
 		if(query.length() > KMER_K){ printf("Warning, query too long:%s\n",query.c_str()); return; }
 
@@ -291,22 +292,28 @@ void run_query_all(const std::string & query, bool first, std::set<ExperimentId>
 		}
 }
 
-void print_exp_set(std::set<ExperimentId> & exp_set, ExpId2Name & exp_id2name, bool json) {
+void print_exp_set(std::set<ExperimentId> & exp_set, ExpId2Name & exp_id2name, ExpId2Desc & exp_id2desc, bool json) {
 
 	if(json) {
 		std::cout << "{  \"experiments\" : [ ";
 		bool first = true;
-		for(auto it : exp_set) {
+		for(auto const it : exp_set) {
 			assert(exp_id2name.count(it)>0);
+			std::string exp_desc = "NA";
+			auto it_desc = exp_id2desc.find(it);
+			if(it_desc != exp_id2desc.end() && it_desc->second.length() > 0) exp_desc = it_desc->second;
 			if(!first) { printf(", ");} else { first = false; }
-			std::cout << "{ \"name\" : \"" << exp_id2name.at(it) << "\" }";
+			std::cout << "{ \"name\" : \"" << exp_id2name.at(it) << "\", \"desc\" : \"" << exp_desc << "\" }";
 		}
 		std::cout << "]}\n";
 	}
 	else {
 		for(auto it : exp_set) {
 			assert(exp_id2name.count(it)>0);
-			std::cout << exp_id2name.at(it) << "\n";
+			std::string exp_desc = "NA";
+			auto it_desc = exp_id2desc.find(it);
+			if(it_desc != exp_id2desc.end() && it_desc->second.length() > 0) exp_desc = it_desc->second;
+			std::cout << exp_id2name.at(it) << "\t" << exp_desc << "\n";
 		}
 	}
 
@@ -314,12 +321,11 @@ void print_exp_set(std::set<ExperimentId> & exp_set, ExpId2Name & exp_id2name, b
 
 void usage_kquery() {
 	print_usage_header();
-	fprintf(stderr, "Usage:\n   kiq query -i <file> -k <file> -m <file> [-q <file> | -Q KMER[,KMER]* ]\n");
+	fprintf(stderr, "Usage:\n   kiq query -i <file> -k <file> [-q <file> | -Q KMER[,KMER]* ]\n");
 	fprintf(stderr, "\n");
 	fprintf(stderr, "Mandatory arguments:\n");
 	fprintf(stderr, "   -i FILENAME   Name of index file\n");
 	fprintf(stderr, "   -k FILENAME   Name of k-mer count database file\n");
-	fprintf(stderr, "   -m FILENAME   Name of sample metadata file\n");
 	fprintf(stderr, "\n");
 	fprintf(stderr, "Optional arguments:\n");
 	fprintf(stderr, "   -q FILENAME   Name of file with query k-mers\n");
@@ -327,7 +333,7 @@ void usage_kquery() {
 	fprintf(stderr, "   -t INT        Read count threshold\n");
 	fprintf(stderr, "   -r FLOAT      RPM threshold\n");
 	fprintf(stderr, "   -a            Only output experiments that contain all query k-mers\n");
-	fprintf(stderr, "   -j            Output in JSON format, used by Jsearch\n");
+	fprintf(stderr, "   -j            Output in JSON format\n");
 	fprintf(stderr, "   -v            Enable verbose output.\n");
 	fprintf(stderr, "   -d            Enable debug output.\n");
 	fprintf(stderr, "   -h            Print this help.\n");

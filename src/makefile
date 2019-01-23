@@ -15,12 +15,12 @@ all: makefile kiq
 	mkdir -p ../bin && cp kiq ../bin/
 
 sra: CXXFLAGS:=$(CXXFLAGS) -D KIQ_SRA
-sra: makefile main.o kdump.o kindex.o kquery.o kdb.o util.o ReadItem.o CountThread.o ksra.o
-	$(CXX) $(LDFLAGS) -o kiq kdump.o main.o kindex.o kdb.o kquery.o util.o ReadItem.o CountThread.o ksra.o $(LDLIBS_SRA)
+sra: makefile main.o kdump.o kindex.o kquery.o kdb.o kmodify.o util.o ReadItem.o CountThread.o ksra.o
+	$(CXX) $(LDFLAGS) -o kiq kdump.o main.o kindex.o kdb.o kquery.o util.o kmodify.o ReadItem.o CountThread.o ksra.o $(LDLIBS_SRA)
 	mkdir -p ../bin && cp kiq ../bin/
 
-kiq: makefile main.o kdump.o kindex.o kquery.o kdb.o util.o ReadItem.o CountThread.o
-	$(CXX) $(LDFLAGS) -o kiq kdump.o main.o kindex.o kdb.o kquery.o util.o ReadItem.o CountThread.o $(LDLIBS)
+kiq: makefile main.o kdump.o kindex.o kquery.o kdb.o kmodify.o util.o ReadItem.o CountThread.o
+	$(CXX) $(LDFLAGS) -o kiq kdump.o main.o kindex.o kdb.o kquery.o kmodify.o util.o ReadItem.o CountThread.o $(LDLIBS)
 
 ksra.o: ksra.cpp version.hpp
 	$(CXX) $(CXXFLAGS) $(INCLUDES) $(INCLUDES_SRA) -c -o ksra.o ksra.cpp
